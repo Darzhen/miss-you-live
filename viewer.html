@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Location Viewer ❤️</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #fff5f8;
+      color: #333;
+    }
+    .topbar {
+      padding: 12px 16px;
+      background: #ff477e;
+      color: #fff;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    input {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 14px;
+      width: 130px;
+      text-transform: uppercase;
+    }
+    button {
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: none;
+      background: #fff;
+      color: #ff477e;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .info {
+      padding: 12px 16px;
+      font-size: 14px;
+      background: #fff;
+      border-bottom: 1px solid #ffd1dc;
+    }
+    #map {
+      height: calc(100vh - 115px);
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <strong>❤️ Live Viewer</strong>
+    <input id="roomInput" type="text" placeholder="Session ID" />
+    <button type="button" onclick="watchRoom()">Connect</button>
+  </div>
+  <div class="info" id="info">Enter her Session ID and tap Connect.</div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAU5MPv1dFi0qV65NO-NAH4lW_AMbKJqA8",
+      authDomain: "miss-you-live.firebaseapp.com",
+      databaseURL: "https://miss-you-live-default-rtdb.firebaseio.com",
+      projectId: "miss-you-live",
+      storageBucket: "miss-you-live.firebasestorage.app",
+      messagingSenderId: "689539430941",
+      appId: "1:689539430941:web:f0e19c3daa61812e4be4f4",
+      measurementId: "G-7YMW0W1PKK"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const map = L.map("map").setView([13.359, 123.733], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    let marker = null;
+    let unsubscribe = null;
+
+    window.watchRoom = function () {
+      const roomId = document.getElementById("roomInput").value.trim().toUpperCase();
+      if (!roomId) return;
+
+      if (unsubscribe) unsubscribe();
+
+      const roomRef = ref(db, `sessions/${roomId}`);
+      unsubscribe = onValue(roomRef, (snapshot) => {
+        const data = snapshot.val();
+        const infoEl = document.getElementById("info");
+
+        if (!data) {
+          infoEl.innerText = `No data yet for session ${roomId}.`;
+          return;
+        }
+
+        const lat = Number(data.lat);
+        const lon = Number(data.lon);
+
+        if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+          if (!marker) {
+            marker = L.marker([lat, lon]).addTo(map);
+          } else {
+            marker.setLatLng([lat, lon]);
+          }
+          map.setView([lat, lon], 15);
+        }
+
+        infoEl.innerHTML =
+          `<strong>Status:</strong> ${data.active ? "🟢 Live Sharing" : "⚪ Stopped"} | ` +
+          `<strong>Phone:</strong> ${data.phone || "Not entered"} | ` +
+          `<strong>Updated:</strong> ${data.updatedAt || "—"}` +
+          (!Number.isNaN(lat) && !Number.isNaN(lon)
+            ? ` | <a target="_blank" rel="noopener noreferrer" href="https://www.google.com/maps?q=${lat},${lon}">Google Maps</a>`
+            : "");
+      });
+    };
+  </script>
+</body>
+</html>
